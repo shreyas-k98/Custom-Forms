@@ -1,0 +1,40 @@
+
+{
+    "form_title": "New Form",
+    "fields": [
+        {
+            "field_name": "Name",
+            "field_type": "text",
+            "is_required": true,
+            "order": 1
+        },
+        {
+            "field_name": "Email",
+            "field_type": "text",
+            "is_required": false,
+            "order": 2  
+        },
+        {
+            "field_name": "Contact",
+            "field_type": "text",
+            "is_required": true,
+            "order": 3  
+        },
+        {
+            "field_name": "Gender",
+            "field_type": "radio",
+            "is_required": false,
+            "order": 4,
+            "options": [
+                {
+                    "label": "Male",
+                    "value": "M"
+                },
+                {
+                    "label": "Female",
+                    "value": "F"
+                }
+            ]
+        }
+    ]
+}
