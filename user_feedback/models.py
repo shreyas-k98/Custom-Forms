@@ -108,26 +108,158 @@ class FormResponses(BaseModel):
         on_delete=models.DO_NOTHING,
         related_name="form_response",
     )
+
+    class Meta:
+        db_table = "FormResponses"
+
+
+class TextFieldResponses(BaseModel):
+    """model to store text fields"""
+
+    response = models.ForeignKey(
+        to=FormResponses,
+        null=False,
+        blank=False,
+        default=None,
+        related_name="related_response",
+        on_delete=models.DO_NOTHING,
+    )
     field = models.ForeignKey(
         to=FormFields,
         null=False,
         blank=False,
+        related_name="related_fields",
         on_delete=models.DO_NOTHING,
-        related_name="field_form",
     )
-    option = models.ForeignKey(
+    form = models.ForeignKey(
+        to=CustomForms,
+        null=False,
+        blank=False,
+        related_name="forms_set",
+        on_delete=models.DO_NOTHING,
+    )
+    response_text = models.TextField(null=True, blank=True)
+
+    class Meta:
+        db_table = "TextFieldResponses"
+
+    @classmethod
+    def save_response(
+        cls: type,
+        response_id: int,
+        form_id: int,
+        field: dict,
+        *args: tuple,
+        **kwargs: dict
+    ) -> None:
+        """save response for text field"""
+        field_id, response_text = field.get("id"), field.get("response_text")
+        if not all([field_id, response_text]):
+            return None
+
+        cls.objects.create(
+            form_id=form_id,
+            field_id=field_id,
+            response_id=response_id,
+            response_text=response_text,
+        )
+
+    @classmethod
+    def get_response_value(
+        cls: type,
+        response: FormResponses,
+        field: FormFields,
+        *args: tuple,
+        **kwargs: dict
+    ) -> str:
+        """get response value for text field"""
+        field_id: int = field.get("field_id")
+        resp = response.related_response.filter(field_id=field_id).first()
+        return resp.response_text if resp else ""
+
+
+class OptionFieldResponses(BaseModel):
+    """model to store option fields (radio, checkbox)"""
+
+    response = models.ForeignKey(
+        to=FormResponses,
+        null=False,
+        blank=False,
+        related_name="related_response_option",
+        on_delete=models.DO_NOTHING,
+    )
+    field = models.ForeignKey(
+        to=FormFields,
+        null=False,
+        blank=False,
+        related_name="related_fields_options",
+        on_delete=models.DO_NOTHING,
+    )
+    form = models.ForeignKey(
+        to=CustomForms,
+        null=False,
+        blank=False,
+        related_name="option_field_response",
+        on_delete=models.DO_NOTHING,
+    )
+    selected_option = models.ForeignKey(
         to=Options,
-        null=True,
-        blank=True,
+        null=False,
+        related_name="related_options",
         on_delete=models.DO_NOTHING,
-        related_name="selected_option",
-    )
-    response_text = models.TextField(
-        max_length=500, null=True, db_column="response_text"
-    )
-    response_uuid = models.CharField(
-        max_length=100, null=False, db_column="response_uuid", default=""
     )
 
     class Meta:
-        db_table = "FormResponses"
+        db_table = "OptionFieldResponses"
+
+    @classmethod
+    def save_response(
+        cls: type,
+        response_id: int,
+        form_id: int,
+        field: dict,
+        *args: tuple,
+        **kwargs: dict
+    ) -> None:
+        """save responses for option fields like radio and checkbox field"""
+        field_id, options, selected_option = (
+            field.get("id"),
+            field.get("options", []),
+            field.get("selected_option"),
+        )
+        if not any(
+            [
+                isinstance(options, list),
+                isinstance(selected_option, int),
+            ]
+        ):
+            return None
+
+        options: list[int] = [selected_option] if selected_option else options
+        cls.objects.bulk_create(
+            [
+                cls(
+                    form_id=form_id,
+                    field_id=field_id,
+                    response_id=response_id,
+                    selected_option_id=option_id,
+                )
+                for option_id in options
+            ]
+        )
+
+    @classmethod
+    def get_response_value(
+        cls: type,
+        response: FormResponses,
+        field: FormFields,
+        *args: tuple,
+        **kwargs: dict
+    ) -> str:
+        """get response value for option fields (radio, checkbox)"""
+        field_id: int = field.get("field_id")
+        resp = response.related_response_option.filter(field_id=field_id).values_list(
+            "selected_option__option_value", flat=True
+        )
+        option_field_values: str = ", ".join(resp)
+        return option_field_values or ""

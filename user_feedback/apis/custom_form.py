@@ -105,13 +105,13 @@ class FormMetaView(View):
 
     def prepare_form_response(
         self: object,
-        form: Form,
         fields: QuerySet,
         options: QuerySet | list = [],
         *args: tuple,
         **kwargs: dict,
     ) -> dict:
         form_response: dict = {}
+        form = fields.first() and fields.first().form
         fields: list = list(
             fields.values(
                 "field_id", "field_name", "field_type", "is_required", "order"
@@ -145,22 +145,22 @@ class FormMetaView(View):
         if not all(
             [
                 (form_id),
-                (user_id := request.session.get("user_id")),
+                (request.session.get("user_id")),
             ]
         ):
             return JsonResponse({"message": "Invalid Payload"}, status=400)
 
-        form: Form = Form.get(form_id)
-        if not form:
-            return JsonResponse({"message": "Invalid Form Id"}, status=400)
-
-        fields: QuerySet = Field.filter(form)
+        fields: QuerySet = Field.objects.filter(form__form_id=form_id).select_related(
+            "form"
+        )
         if not fields:
             return JsonResponse({"message": "Form Do not have any fields"}, status=400)
 
         option_fields = fields.filter(field_type__in=self.option_fields)
         if not option_fields:
-            return JsonResponse({"form": self.prepare_form_response(form, fields)})
+            return JsonResponse(
+                {"form": self.prepare_form_response(fields, options=[])}
+            )
 
         options: QuerySet = Option.filter(option_fields)
-        return JsonResponse(self.prepare_form_response(form, fields, options))
+        return JsonResponse(self.prepare_form_response(fields, options=options))

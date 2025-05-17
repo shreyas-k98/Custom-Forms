@@ -1,9 +1,6 @@
-import json
 from django.views import View
 from user_feedback.models import User
 from django.http import HttpRequest, JsonResponse
-from django.utils.decorators import method_decorator
-from django.views.decorators.csrf import csrf_exempt
 
 
 class UserRegistrationView(View):
@@ -27,11 +24,10 @@ class UserRegistrationView(View):
         payload: dict = request.data
         if not all(
             [
+                (name := payload.get("name")),
                 (email := payload.get("email")),
                 (username := payload.get("username")),
                 (password := payload.get("password")),
-                (last_name := payload.get("name")),
-                (first_namne := payload.get("name")),
             ]
         ):
             return JsonResponse({"message": "Invalid payload"}, status=400)
@@ -39,13 +35,17 @@ class UserRegistrationView(View):
         all_users: list = User.objects.all().values_list("username", flat=True)
         if username in all_users:
             return JsonResponse({"message": "Username already exists"}, status=400)
+
+        name: list = name.split(" ")
+        first_name: str = name[0]
+        last_name: str = name[-1]
         user: User = self.prepare_and_save_user(
             payload={
                 "email": email,
                 "username": username,
                 "password": password,
                 "last_name": last_name,
-                "first_namne": first_namne,
+                "first_name": first_name,
             }
         )
         return JsonResponse({"message": "User saved successfully"})

@@ -6,64 +6,68 @@ from user_feedback.apis.proxy.field import Field
 from user_feedback.apis.proxy.response import Response
 from django.http import HttpRequest, HttpResponse, JsonResponse
 
+from user_feedback.enums import InputTypeEnum
+from user_feedback.models import FormResponses, OptionFieldResponses, TextFieldResponses
+
 
 class CustomFormResponseView(View):
     """View to fetch all responses of a form and gnerate an excel to export responses"""
+
+    input_type_mapper: dict = {
+        InputTypeEnum.TEXT.value: TextFieldResponses,
+        InputTypeEnum.RADIO.value: OptionFieldResponses,
+        InputTypeEnum.CHECKBOX.value: OptionFieldResponses,
+    }
 
     def get(
         self: object, request: HttpRequest, form_id: int, *args: tuple, **kwargs: dict
     ) -> HttpResponse | JsonResponse:
         """method to get all responses"""
-        if not all([(form_id), (user_id := request.session.get("user_id"))]):
-            return JsonResponse({"message": "Invalid Payload"}, status=400)
+        if not all([request.session.get("user_id"), form_id]):
+            return JsonResponse({"message": "Invalid Session"}, status=400)
 
-        form: Form = Form.get(form_id)
-        if not form:
-            return JsonResponse({"message": "Invalid form id"}, status=400)
-
-        if not form.created_by.user_id == user_id:
+        form: Form = Form.objects.get(form_id=form_id)
+        if form.created_by_id != request.session.get("user_id"):
             return JsonResponse(
-                {"message": "Form responses can only be exported by Creator"},
-                status=400,
+                {"message": "Response can only be downloaded by form owner"}, status=400
             )
 
-        fields: list = list(Field.filter(form).values("field_id", "field_name"))
-        field_ids: list = [field.get("field_id") for field in fields]
-        form_responses: QuerySet = Response.objects.filter(form_id=form.form_id)
-        response_uuids: list = list(
-            set(form_responses.values_list("response_uuid", flat=True))
+        responses = (
+            FormResponses.objects.filter(form_id=form_id)
+            .select_related("form")
+            .prefetch_related(
+                "related_response",
+                "related_response_option",
+                "related_response_option__selected_option",
+            )
+        )
+        form_fields = Field.objects.filter(form_id=form_id).values(
+            "field_id", "field_name", "field_type"
         )
         work_book: Workbook = Workbook()
         work_sheet = work_book.add_sheet("form-responses.xls")
         work_sheet.write(0, 0, "Response Added By")
-        for index, item in enumerate(fields):
-            field_id: int = item.get("field_id")
+        for index, item in enumerate(form_fields):
             field_name: str = item.get("field_name")
             work_sheet.write(0, index + 1, field_name)
 
         row_index: int = 1
-        for ind, itr in enumerate(response_uuids):
-            field_by: str = "unknown"
-            form_response: Response = form_responses.filter(response_uuid=itr).first()
-            if form_response:
-                field_by = form_response.filled_by.username
-
-            work_sheet.write(row_index, 0, field_by)
-            for i, f in enumerate(field_ids):
-                row_data: Response = form_responses.filter(
-                    response_uuid=itr, field_id=f
-                ).first()
-                if not row_data:
+        for index, item in enumerate(responses):
+            response_submitted_by: str = (
+                item.filled_by.first_name or item.filled_by.username
+            )
+            work_sheet.write(row_index, 0, response_submitted_by)
+            for field_index, field_item in enumerate(form_fields):
+                field_type: str = field_item.get("field_type")
+                field_class: type = self.input_type_mapper.get(field_type)
+                value: str = field_class.get_response_value(
+                    response=item, field=field_item
+                )
+                if not value:
                     continue
 
-                data = ""
-                if row_data.field.field_type in ["text", "checkbox"]:
-                    data = row_data.response_text
+                work_sheet.write(row_index, field_index + 1, value)
 
-                if row_data.field.field_type == "radio":
-                    data = row_data.option.option_value
-
-                work_sheet.write(row_index, i + 1, data)
             row_index += 1
 
         response: HttpResponse = HttpResponse(content_type="application/vnd.ms-excel")
