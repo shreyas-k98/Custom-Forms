@@ -119,6 +119,7 @@ class TextFieldResponses(BaseModel):
         to=FormResponses,
         null=False,
         blank=False,
+        default=None,
         related_name="related_response",
         on_delete=models.DO_NOTHING,
     )
@@ -136,10 +137,24 @@ class TextFieldResponses(BaseModel):
         related_name="forms_set",
         on_delete=models.DO_NOTHING,
     )
-    response = models.TextField(null=True, blank=True)
+    response_text = models.TextField(null=True, blank=True)
 
     class Meta:
         db_table = "TextFieldResponses"
+
+    @classmethod
+    def save_response(cls: type, response_id: int, form_id: int, field: dict, *args: tuple, **kwargs: dict) -> None:
+        """save response for text field"""
+        field_id, response_text = field.get("id"), field.get("response_text")
+        if not all([field_id, response_text]):
+            return None
+        
+        cls.objects.create(
+            form_id=form_id,
+            field_id=field_id,
+            response_id=response_id,
+            response_text=response_text,
+        )
 
 class OptionFieldResponses(BaseModel):
     """model to store option fields (radio, checkbox) """
@@ -147,7 +162,7 @@ class OptionFieldResponses(BaseModel):
         to=FormResponses,
         null=False,
         blank=False,
-        related_name="related_response",
+        related_name="related_response_option",
         on_delete=models.DO_NOTHING,
     )
     field = models.ForeignKey(
@@ -173,3 +188,32 @@ class OptionFieldResponses(BaseModel):
 
     class Meta:
         db_table = "OptionFieldResponses"
+
+    @classmethod
+    def save_response(cls: type, response_id: int, form_id: int, field: dict, *args: tuple, **kwargs: dict) -> None:
+        """save responses for option fields like radio and checkbox field"""
+        field_id, options, selected_option = (
+            field.get("id"),
+            field.get("options", []),
+            field.get("selected_option"),
+        )
+        if not any(
+            [
+                isinstance(options, list),
+                isinstance(selected_option, int),
+            ]
+        ):
+            return None
+        
+        options: list[int] = [selected_option] if selected_option else options
+        cls.objects.bulk_create(
+            [
+                cls(
+                    form_id=form_id,
+                    field_id=field_id,
+                    response_id=response_id,
+                    selected_option_id=option_id,
+                )
+                for option_id in options
+            ]
+        )
