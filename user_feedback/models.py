@@ -108,26 +108,68 @@ class FormResponses(BaseModel):
         on_delete=models.DO_NOTHING,
         related_name="form_response",
     )
+
+    class Meta:
+        db_table = "FormResponses"
+
+
+class TextFieldResponses(BaseModel):
+    """model to store text fields"""
+    response = models.ForeignKey(
+        to=FormResponses,
+        null=False,
+        blank=False,
+        related_name="related_response",
+        on_delete=models.DO_NOTHING,
+    )
     field = models.ForeignKey(
         to=FormFields,
         null=False,
         blank=False,
+        related_name="related_fields",
         on_delete=models.DO_NOTHING,
-        related_name="field_form",
     )
-    option = models.ForeignKey(
+    form = models.ForeignKey(
+        to=CustomForms,
+        null=False,
+        blank=False,
+        related_name="forms_set",
+        on_delete=models.DO_NOTHING,
+    )
+    response = models.TextField(null=True, blank=True)
+
+    class Meta:
+        db_table = "TextFieldResponses"
+
+class OptionFieldResponses(BaseModel):
+    """model to store option fields (radio, checkbox) """
+    response = models.ForeignKey(
+        to=FormResponses,
+        null=False,
+        blank=False,
+        related_name="related_response",
+        on_delete=models.DO_NOTHING,
+    )
+    field = models.ForeignKey(
+        to=FormFields,
+        null=False,
+        blank=False,
+        related_name="related_fields_options",
+        on_delete=models.DO_NOTHING,
+    )
+    form = models.ForeignKey(
+        to=CustomForms,
+        null=False,
+        blank=False,
+        related_name="option_field_response",
+        on_delete=models.DO_NOTHING,
+    )
+    selected_option = models.ForeignKey(
         to=Options,
-        null=True,
-        blank=True,
-        on_delete=models.DO_NOTHING,
-        related_name="selected_option",
-    )
-    response_text = models.TextField(
-        max_length=500, null=True, db_column="response_text"
-    )
-    response_uuid = models.CharField(
-        max_length=100, null=False, db_column="response_uuid", default=""
+        null=False,
+        related_name="related_options",
+        on_delete=models.DO_NOTHING,   
     )
 
     class Meta:
-        db_table = "FormResponses"
+        db_table = "OptionFieldResponses"
