@@ -115,6 +115,7 @@ class FormResponses(BaseModel):
 
 class TextFieldResponses(BaseModel):
     """model to store text fields"""
+
     response = models.ForeignKey(
         to=FormResponses,
         null=False,
@@ -143,12 +144,19 @@ class TextFieldResponses(BaseModel):
         db_table = "TextFieldResponses"
 
     @classmethod
-    def save_response(cls: type, response_id: int, form_id: int, field: dict, *args: tuple, **kwargs: dict) -> None:
+    def save_response(
+        cls: type,
+        response_id: int,
+        form_id: int,
+        field: dict,
+        *args: tuple,
+        **kwargs: dict
+    ) -> None:
         """save response for text field"""
         field_id, response_text = field.get("id"), field.get("response_text")
         if not all([field_id, response_text]):
             return None
-        
+
         cls.objects.create(
             form_id=form_id,
             field_id=field_id,
@@ -156,8 +164,23 @@ class TextFieldResponses(BaseModel):
             response_text=response_text,
         )
 
+    @classmethod
+    def get_response_value(
+        cls: type,
+        response: FormResponses,
+        field: FormFields,
+        *args: tuple,
+        **kwargs: dict
+    ) -> str:
+        """get response value for text field"""
+        field_id: int = field.get("field_id")
+        resp = response.related_response.filter(field_id=field_id).first()
+        return resp.response_text if resp else ""
+
+
 class OptionFieldResponses(BaseModel):
-    """model to store option fields (radio, checkbox) """
+    """model to store option fields (radio, checkbox)"""
+
     response = models.ForeignKey(
         to=FormResponses,
         null=False,
@@ -183,14 +206,21 @@ class OptionFieldResponses(BaseModel):
         to=Options,
         null=False,
         related_name="related_options",
-        on_delete=models.DO_NOTHING,   
+        on_delete=models.DO_NOTHING,
     )
 
     class Meta:
         db_table = "OptionFieldResponses"
 
     @classmethod
-    def save_response(cls: type, response_id: int, form_id: int, field: dict, *args: tuple, **kwargs: dict) -> None:
+    def save_response(
+        cls: type,
+        response_id: int,
+        form_id: int,
+        field: dict,
+        *args: tuple,
+        **kwargs: dict
+    ) -> None:
         """save responses for option fields like radio and checkbox field"""
         field_id, options, selected_option = (
             field.get("id"),
@@ -204,7 +234,7 @@ class OptionFieldResponses(BaseModel):
             ]
         ):
             return None
-        
+
         options: list[int] = [selected_option] if selected_option else options
         cls.objects.bulk_create(
             [
@@ -217,3 +247,19 @@ class OptionFieldResponses(BaseModel):
                 for option_id in options
             ]
         )
+
+    @classmethod
+    def get_response_value(
+        cls: type,
+        response: FormResponses,
+        field: FormFields,
+        *args: tuple,
+        **kwargs: dict
+    ) -> str:
+        """get response value for option fields (radio, checkbox)"""
+        field_id: int = field.get("field_id")
+        resp = response.related_response_option.filter(field_id=field_id).values_list(
+            "selected_option__option_value", flat=True
+        )
+        option_field_values: str = ", ".join(resp)
+        return option_field_values or ""

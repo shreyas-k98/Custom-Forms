@@ -1,4 +1,5 @@
 from django.views import View
+from django.middleware.csrf import get_token
 from django.http import HttpRequest, JsonResponse
 
 
@@ -11,4 +12,5 @@ class Session(View):
         self: object, request: HttpRequest, *args: tuple, **kwargs: dict
     ) -> JsonResponse:
         """get method to get session data"""
+        get_token(request)
         return JsonResponse(request.session._session)

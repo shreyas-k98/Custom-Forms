@@ -36,15 +36,14 @@ class FormSubmissionView(View):
             ]
         ):
             return JsonResponse({"message" "Invalid payload"}, status=400)
-        
+
         if not payload.get("fields"):
             return JsonResponse({"message" "Invalid payload"}, status=400)
-        
+
         fields: list = payload.get("fields", [])
         with transaction.atomic():
             response = FormResponses.objects.create(
-                form_id=form_id,
-                filled_by_id=user_id
+                form_id=form_id, filled_by_id=user_id
             )
             for field in fields:
                 field_type = field.get("type")
