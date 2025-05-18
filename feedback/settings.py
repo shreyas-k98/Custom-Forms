@@ -11,11 +11,16 @@ https://docs.djangoproject.com/en/5.1/ref/settings/
 """
 
 import os
+import json
 from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+SECRETS: dict = {}
 
+with open(os.path.join(BASE_DIR, 'secrets.json')) as f:
+    print("fetching secrets from secrets.json .....")
+    SECRETS = json.load(f)
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.1/howto/deployment/checklist/
@@ -24,9 +29,9 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = "django-insecure-)jm19dfeut3$5zt#4af96^3+m-23wc=ss-7urmpwy3&s1^pf^5"
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = SECRETS.get("debug", True)
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = SECRETS.get("allowed_hosts")
 
 
 # Application definition
@@ -129,12 +134,15 @@ STATICFILES_DIRS = [BASE_DIR / "static"]
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
-CACHES = {
-    "default": {
-        "BACKEND": "django.core.cache.backends.redis.RedisCache",
-        "LOCATION": "redis://127.0.0.1:6379",
-    }
-}
+CACHES = SECRETS.get("cache_settings")
 
 # SESSION_ENGINE = "django.contrib.sessions.backends.db"
 SESSION_ENGINE = "django.contrib.sessions.backends.cache"
+
+EMAIL_PORT = SECRETS.get("email_port", 587)
+EMAIL_USE_TLS = SECRETS.get("email_use_tls", True)
+EMAIL_HOST = SECRETS.get("email_host", "")
+EMAIL_HOST_USER = SECRETS.get("email_host_user", "")
+EMAIL_HOST_PASSWORD = SECRETS.get("email_host_password")
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
