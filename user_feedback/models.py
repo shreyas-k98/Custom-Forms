@@ -36,7 +36,7 @@ class User(AbstractUser):
 
 class CustomForms(BaseModel):
     form_id = models.AutoField(primary_key=True)
-    form_title = models.CharField(max_length=100, db_column="form_title")
+    form_title = models.CharField(max_length=50, db_column="form_title")
     created_by = models.ForeignKey(
         to=User,
         null=False,

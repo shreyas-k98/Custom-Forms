@@ -18,7 +18,7 @@ from pathlib import Path
 BASE_DIR = Path(__file__).resolve().parent.parent
 SECRETS: dict = {}
 
-with open(os.path.join(BASE_DIR, 'secrets.json')) as f:
+with open(os.path.join(BASE_DIR, "secrets.json")) as f:
     print("fetching secrets from secrets.json .....")
     SECRETS = json.load(f)
 
@@ -144,5 +144,9 @@ EMAIL_USE_TLS = SECRETS.get("email_use_tls", True)
 EMAIL_HOST = SECRETS.get("email_host", "")
 EMAIL_HOST_USER = SECRETS.get("email_host_user", "")
 EMAIL_HOST_PASSWORD = SECRETS.get("email_host_password")
-EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
 DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
+
+CELERY_BROKER_URL = SECRETS.get("celery_broker_url")
+CELERY_ACCEPT_CONTENT = SECRETS.get("celery_accept_content")
+CELERY_TASK_SERIALIZER = SECRETS.get("celery_task_serializer")
