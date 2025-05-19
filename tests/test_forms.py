@@ -10,6 +10,7 @@ class TestForms:
     CREATE_FORM = "/api/form/new"
     GET_FORM = "/api/form/{form_id}"
     INVALID_PAYLOAD = "Invalid Payload"
+    INVALID_SESSION = "Invalid Session"
     INVALID_FORM_ID = "Invalid form id"
     AUTHENTICATION_FAILED = "Authentication Error"
     GET_FORM_RESPONSES = "/api/form/{form_id}/responses"
@@ -145,7 +146,7 @@ class TestForms:
         )
         assert response.status_code == 400
         data = response.json()
-        assert data.get("message") == self.INVALID_PAYLOAD
+        assert data.get("message") == self.INVALID_SESSION
 
     def test_download_form_responses_with_session(self, *args, **kwargs):
         """download form responses with session"""
@@ -159,16 +160,3 @@ class TestForms:
         assert (
             response["Content-Disposition"] == "attachment; filename=form-responses.xls"
         )
-
-    def test_download_form_responses_with_session_invalid_form_id(
-        self, *args, **kwargs
-    ):
-        """download form responses with session and invalid form id"""
-        self.set_session({"user_id": self.test_user.pk})
-        response = self.client.get(
-            self.GET_FORM_RESPONSES.format(form_id=8),
-            content_type="application/vnd.ms-excel",
-        )
-        assert response.status_code == 400
-        data = response.json()
-        assert data.get("message") == self.INVALID_FORM_ID

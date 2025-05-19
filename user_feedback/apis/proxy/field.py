@@ -1,6 +1,8 @@
-from user_feedback.apis.proxy.form import Form
-from user_feedback.models import FormFields
+from django.core.cache import cache
 from django.db.models import QuerySet
+from user_feedback.models import FormFields
+from user_feedback.apis.proxy.form import Form
+from user_feedback.serializers import FieldSerializer
 
 
 class Field(FormFields):
@@ -19,7 +21,7 @@ class Field(FormFields):
         order: int = 0,
         is_required: bool = False,
         *args: tuple,
-        **kwargs: dict
+        **kwargs: dict,
     ) -> object:
         """class method to create a field and add it to form"""
         field = cls.objects.create(
@@ -46,3 +48,31 @@ class Field(FormFields):
             return
 
         return fields
+
+    @classmethod
+    def get_cached_fields(
+        cls: type, form_id: int, *args: tuple, **kwargs: dict
+    ) -> dict:
+        """get fields present in cache"""
+        cache_key: str = f"form_fields_{form_id}"
+        cached_fields: dict | None = cache.get(cache_key)
+        if cached_fields and isinstance(cached_fields, dict):
+            return cached_fields
+
+        fields = (
+            cls.objects.filter(form__form_id=form_id)
+            .prefetch_related("option_form")
+            .select_related("form")
+        )
+        if not fields:
+            return
+
+        form = fields.first().form
+        fields = FieldSerializer(fields, many=True).data
+        data = {
+            "fields": fields,
+            "form_id": form.pk,
+            "form_title": form.form_title,
+        }
+        cache.set(cache_key, data)
+        return data

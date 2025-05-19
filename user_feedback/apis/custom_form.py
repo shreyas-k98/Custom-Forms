@@ -103,41 +103,6 @@ class FormMetaView(View):
     http_method_names = ["get"]
     option_fields = ["radio", "checkbox"]
 
-    def prepare_form_response(
-        self: object,
-        fields: QuerySet,
-        options: QuerySet | list = [],
-        *args: tuple,
-        **kwargs: dict,
-    ) -> dict:
-        form_response: dict = {}
-        form = fields.first() and fields.first().form
-        fields: list = list(
-            fields.values(
-                "field_id", "field_name", "field_type", "is_required", "order"
-            )
-        )
-        if options:
-            [
-                (
-                    field.update({"options": options_list})
-                    if (
-                        options_list := list(
-                            options.filter(field_id=field.get("field_id")).values(
-                                "option_id", "option_lable", "option_value"
-                            )
-                        )
-                    )
-                    else None
-                )
-                for field in fields
-            ]
-
-        form_response.update(
-            {"form_id": form.form_id, "form_title": form.form_title, "fields": fields}
-        )
-        return form_response
-
     def get(
         self: object, request: HttpRequest, form_id: int, *args: tuple, **kwargs: dict
     ) -> JsonResponse:
@@ -150,17 +115,8 @@ class FormMetaView(View):
         ):
             return JsonResponse({"message": "Invalid Payload"}, status=400)
 
-        fields: QuerySet = Field.objects.filter(form__form_id=form_id).select_related(
-            "form"
-        )
+        fields = Field.get_cached_fields(form_id=form_id)
         if not fields:
-            return JsonResponse({"message": "Form Do not have any fields"}, status=400)
+            return JsonResponse({"error": "Invalid form"}, status=400)
 
-        option_fields = fields.filter(field_type__in=self.option_fields)
-        if not option_fields:
-            return JsonResponse(
-                {"form": self.prepare_form_response(fields, options=[])}
-            )
-
-        options: QuerySet = Option.filter(option_fields)
-        return JsonResponse(self.prepare_form_response(fields, options=options))
+        return JsonResponse(fields)
